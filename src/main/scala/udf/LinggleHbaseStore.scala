@@ -5,6 +5,8 @@ package cc.nlplab
 import java.io.FileInputStream
 import java.nio.file.{Paths, Files}
 
+import org.apache.hadoop.hbase.HConstants
+import org.apache.hadoop.hbase.io.compress.Compression.Algorithm.LZ4
 
 import org.apache.hadoop.conf.Configuration
 // import scala.util.parsing.json.JSON
@@ -60,10 +62,10 @@ object HbasePutNgram {
   // }
 
   def toNgramPut(nframe: String, sel:String, total_count: Long, ngramWithCount: String): Put =  {
-
-    val put_data = new Put(nframe.getBytes)
+    val rowkey = s"$sel $nframe".getBytes
+    val put_data = new Put(rowkey)
     val data = (total_count.toString + "\n" + ngramWithCount).getBytes
-    put_data.add("sel".getBytes, sel.getBytes, data)
+    put_data.add("data".getBytes, "".getBytes, data)
 
     // val selectors = (List.range(0, ngram.length).toSet.subsets drop 1)
     // selectors map { sel =>
@@ -82,7 +84,10 @@ object HbasePutNgram {
     if (!hbase.tableExists(hbaseTblName)) {
       println(s"\033[1;33mhbase table doesn't exist, creating...: $hbaseTblName\033[m")
       val mathTable = new HTableDescriptor(hbaseTblName)
-      val gradeCol = new HColumnDescriptor("sel")
+      val gradeCol = new HColumnDescriptor("data")
+      gradeCol.setMaxVersions(1)
+      gradeCol.setCompressionType(LZ4)
+      gradeCol.setBlockCacheEnabled(true)
       mathTable.addFamily(gradeCol)
       hbase.createTable(mathTable)
     } else println(s"\033[1;33m$hbaseTblName exists\033[m")
